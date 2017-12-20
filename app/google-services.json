@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "825921952593",
+    "firebase_url": "https://wannafind-68e3a.firebaseio.com",
+    "project_id": "wannafind-68e3a",
+    "storage_bucket": "wannafind-68e3a.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:825921952593:android:69d0471e8982818a",
+        "android_client_info": {
+          "package_name": "com.luis_santiago.wannafind"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "825921952593-ogp5pb9frlf0po0tp6hhuq6qobgi6qdk.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.luis_santiago.wannafind",
+            "certificate_hash": "dfaa942fccab884bab9643a7a42339805e2b50e6"
+          }
+        },
+        {
+          "client_id": "825921952593-qqur9e2pl5u0ruk7toqoddnkrn6s7ds9.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBYylJNIc-QoXM8A62Faut0yNW8u_nS0Zc"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 2,
+          "other_platform_oauth_client": [
+            {
+              "client_id": "825921952593-qqur9e2pl5u0ruk7toqoddnkrn6s7ds9.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
