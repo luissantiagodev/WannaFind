@@ -27,6 +27,7 @@
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyDzq3y5GT0isqTsLhgLG-0U34sWGidIFTk"/>
 
+
         <activity android:name=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>

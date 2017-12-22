@@ -19,7 +19,5 @@
         android:layout_height="fill_parent"
         />
 
-
-
     <include layout="@layout/menu_layout"/>
 </RelativeLayout>

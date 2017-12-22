@@ -13,11 +13,16 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.Toolbar;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
 
 import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GooglePlayServicesNotAvailableException;
+import com.google.android.gms.common.GooglePlayServicesRepairableException;
 import com.google.android.gms.common.api.GoogleApi;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.PendingResult;
@@ -26,19 +31,29 @@ import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.places.AutocompleteFilter;
+import com.google.android.gms.location.places.GeoDataClient;
+import com.google.android.gms.location.places.Place;
+import com.google.android.gms.location.places.PlaceDetectionClient;
+import com.google.android.gms.location.places.Places;
+import com.google.android.gms.location.places.ui.PlaceAutocomplete;
+import com.google.android.gms.location.places.ui.PlaceSelectionListener;
+import com.google.android.gms.location.places.ui.SupportPlaceAutocompleteFragment;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.tasks.OnSuccessListener;
+
 
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback,
         GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener,
-        LocationListener {
+        LocationListener  , View.OnClickListener {
 
     private final int MY_PERMISION_REQUEST = 1;
 
@@ -52,11 +67,21 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private GoogleMap mGoogleMap;
 
+    private Toolbar mToolbar;
+
     private LocationRequest mLocationRequest;
 
     private static final long INTERVAL = 1000 * 10;
 
     private static final long FASTEST_INTERVAL = 1000 * 5;
+
+    protected GeoDataClient mGeoDataClient;
+
+    protected PlaceDetectionClient mPlaceDetectionClient;
+
+    int PLACE_AUTOCOMPLETE_REQUEST_CODE = 1;
+
+    private Location mLocation;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,7 +89,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         setContentView(R.layout.activity_main);
         setUpMap();
         buildGoogleApiClient();
-
+        setUpToolbar();
     }
 
 
@@ -82,6 +107,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         mGoogleMap.getUiSettings().setScrollGesturesEnabled(true);
         mGoogleMap.getUiSettings().setRotateGesturesEnabled(false);
         mGoogleMap.getUiSettings().setZoomGesturesEnabled(false);
+        mGoogleMap.setMyLocationEnabled(true);
+
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             mFusedLocationProviderClient.getLastLocation().addOnSuccessListener(onSuccessListener);
         } else {
@@ -96,7 +123,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 return;
             }
-            mGoogleMap.setMyLocationEnabled(true);
+        try{
             LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
             CameraPosition cameraPosition = setUpCameraPosition(latLng);
             //googleMap.addMarker(new MarkerOptions().position(latLng).draggable(true));
@@ -104,7 +131,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             mGoogleMap.setOnCameraChangeListener(new GoogleMap.OnCameraChangeListener() {
                 @Override
                 public void onCameraChange(CameraPosition cameraPosition) {
-                    Log.e(TAG, "Position camera change" + cameraPosition);
                     mCenterLatLong = cameraPosition.target;
                     try {
                         Location mLocation = new Location("");
@@ -115,6 +141,10 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                     }
                 }
             });
+        }catch (Exception e){
+
+        }
+
         }
     };
 
@@ -131,8 +161,13 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 .addConnectionCallbacks(this)
                 .addOnConnectionFailedListener(this)
                 .addApi(LocationServices.API)
+                .addApi(Places.PLACE_DETECTION_API)
+                .addApi(Places.GEO_DATA_API)
+                .enableAutoManage(this, this)
                 .build();
         mGoogleApiClient.connect();
+        mGeoDataClient = Places.getGeoDataClient(this, null);
+        mPlaceDetectionClient = Places.getPlaceDetectionClient(this, null);
     }
 
     @Override
@@ -182,7 +217,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         super.onStart();
         if (mGoogleApiClient.isConnected()) {
             startLocationUpdates();
-            Log.e(TAG, "------------Location update resumed------------------");
         }
     }
 
@@ -190,7 +224,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     public void onStop() {
         super.onStop();
-        Log.d(TAG, "isConnected ...............: " + mGoogleApiClient.isConnected());
     }
 
     protected void startLocationUpdates() {
@@ -199,17 +232,18 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
         PendingResult<Status> pendingResult = LocationServices.FusedLocationApi.requestLocationUpdates(
                 mGoogleApiClient, mLocationRequest, this);
-        Log.e(TAG, "Location update started ..............: ");
     }
 
 
     @Override
     public void onLocationChanged(Location location) {
-        Log.e(TAG, "NEW LOCATION");
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             return;
         }
-        mGoogleMap.setMyLocationEnabled(true);
+
+        Log.e(TAG  , "Loaction has changed " + location.getLatitude()  + location.getLongitude());
+        mFusedLocationProviderClient.getLastLocation();
+        mLocation = location;
     }
 
 
@@ -218,9 +252,83 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         super.onResume();
         if (mGoogleApiClient.isConnected()) {
             startLocationUpdates();
-            Log.d(TAG, "Location update resumed .....................");
         }
     }
 
+    private void launchSearchFragment(){
+        AutocompleteFilter typeFilter = new AutocompleteFilter.Builder()
+                .setTypeFilter(AutocompleteFilter.TYPE_FILTER_NONE)
+                .build();
+        final LatLngBounds BOUNDS_COATZACOALCOS = new LatLngBounds(
+                new LatLng(mLocation.getLatitude(), mLocation.getLongitude()), new LatLng(18.141907, -94.473580));
+        try {
+            Intent intent =
+                    new PlaceAutocomplete.IntentBuilder(PlaceAutocomplete.MODE_FULLSCREEN)
+                            .setBoundsBias(BOUNDS_COATZACOALCOS)
+                            .setFilter(typeFilter)
+                            .build(this);
+            startActivityForResult(intent, PLACE_AUTOCOMPLETE_REQUEST_CODE);
+        } catch (GooglePlayServicesRepairableException | GooglePlayServicesNotAvailableException | NullPointerException e ) {
+            e.printStackTrace();
+        }
+    }
 
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()){
+            case R.id.action_favorite:{
+                launchSearchFragment();
+                break;
+            }
+        }
+        return true;
+    }
+
+    private void setUpToolbar(){
+        mToolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(mToolbar);
+        getSupportActionBar().setHomeButtonEnabled(false);
+        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu, menu);
+        return true;
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == PLACE_AUTOCOMPLETE_REQUEST_CODE) {
+            if (resultCode == RESULT_OK) {
+                Place place = PlaceAutocomplete.getPlace(this, data);
+                Log.i(TAG, "Place: " + place.getName());
+            } else if (resultCode == PlaceAutocomplete.RESULT_ERROR) {
+                Status status = PlaceAutocomplete.getStatus(this, data);
+                // TODO: Handle the error.
+                Log.i(TAG, status.getStatusMessage());
+
+            } else if (resultCode == RESULT_CANCELED) {
+                // The user canceled the operation.
+            }
+            finishActivity(PLACE_AUTOCOMPLETE_REQUEST_CODE);
+        }
+    }
+
+    @Override
+    public void onClick(View view) {
+        int currentItem = view.getId();
+        switch (currentItem){
+            case R.id.start_button:{
+                indicateStartingPoint();
+            }
+        }
+    }
+
+    private void indicateStartingPoint() {
+        //TODO: Get the latest location of user
+        //TODO: Get the center point of location
+        //TODO: Put fragment into the container view
+        //TODO: Show data
+    }
 }
