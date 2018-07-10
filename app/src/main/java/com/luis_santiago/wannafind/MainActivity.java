@@ -275,7 +275,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 .setTypeFilter(AutocompleteFilter.TYPE_FILTER_NONE)
                 .build();
         final LatLngBounds BOUNDS_COATZACOALCOS = new LatLngBounds(
-                new LatLng(mLocation.getLatitude(), mLocation.getLongitude()), new LatLng(18.141907, -94.473580));
+                new LatLng(mLocation.getLongitude(), mLocation.getLatitude()), new LatLng(18.141907, -94.473580));
         try {
             Intent intent =
                     new PlaceAutocomplete.IntentBuilder(PlaceAutocomplete.MODE_FULLSCREEN)
